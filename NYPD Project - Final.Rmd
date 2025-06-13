@@ -1,0 +1,98 @@
+---
+title: "NYPD Project - Final"
+output: html_document
+
+---
+
+```{r}
+
+
+
+# NYPD Incident Analysis Project
+# This analysis explores trends in shooting incidents in NYC. The dataset lists every shooting incident going back to 2006 that was documented by the NYPD. 
+# Each record represents a shooting incident and includes information for that incident such as date, time, borough, demographics, and coordinates. 
+
+library(tidyverse)
+
+url <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+data <- read_csv(url, show_col_types = FALSE)
+
+# Clean data
+data_clean <- data %>%
+  mutate(
+    occ_date = as.Date(OCCUR_DATE, format = "%m/%d/%Y"),
+    year_month = as.Date(format(occ_date, "%Y-%m-01"))
+  )
+
+monthly_victims <- data_clean %>%
+  count(year_month, name = "num_victims")
+
+# Linear Regression Model
+model <- lm(num_victims ~ year_month, data = monthly_victims)
+summary(model)
+
+# Monthly Trend in NYC Shooting Victims
+ggplot(monthly_victims, aes(x = year_month, y = num_victims)) +
+  annotate("rect", xmin = as.Date("2020-03-01"), xmax = as.Date("2021-12-31"),
+           ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.2) +
+  geom_line(color = "blue") +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "black", linetype="dashed") +
+  labs(title = "Monthly Trend in NYC Shooting Victims",
+       subtitle = "Shaded area = COVID period (2020–2021)",
+       x = "Month",
+       y = "Number of Victims") +
+  theme_minimal()
+
+# Total Shooting Incidents by Borough
+data_clean %>%
+  filter(!is.na(BORO)) %>%
+  count(BORO) %>%
+  ggplot(aes(x = reorder(BORO, -n), y = n, fill = BORO)) +
+  geom_col(show.legend = FALSE) +
+  labs(title = "Total Shooting Incidents by Borough",
+       x = "Borough",
+       y = "Number of Incidents") +
+  theme_minimal()
+
+# Victim Age Group Distribution
+valid_ages <- c("0-17", "18-24", "25-44", "45-64", "65+")
+data_clean %>%
+  filter(VIC_AGE_GROUP %in% valid_ages) %>%
+  count(VIC_AGE_GROUP) %>%
+  ggplot(aes(x = VIC_AGE_GROUP, y = n, fill = VIC_AGE_GROUP)) +
+  geom_col(show.legend = FALSE) +
+  labs(title = "Victim Age Group Distribution",
+       x = "Age Group",
+       y = "Number of Victims") +
+  theme_minimal()
+
+# Shooting Incidents by Hour
+data_clean %>%
+  mutate(hour = as.numeric(substr(OCCUR_TIME, 1, 2))) %>%
+  filter(!is.na(hour) & hour >= 0 & hour <= 23) %>%
+  count(hour) %>%
+  ggplot(aes(x = hour, y = n)) +
+  geom_col(fill = "orange") +
+  labs(
+    title = "Shooting Incidents by Hour",
+    x = "Hour of Day",
+    y = "Number of Incidents"
+  ) +
+  theme_minimal()
+
+# Conclusion:
+# My analysis shows a clear time trend in the the number of shooting victims in NYC. Using a linear regression model, you can see that the number of monthly shootings decreased over time, although there was a large spike in incidents during COVID. 
+# You can also see that boroughs such as Brooklyn and the Bronx experienced many more incidents than Queens, Manhattan, and Staten Island. Additionally, the victim age distribution shows young adults aged 18-24 and 25-44 much more victimized than any other age group.
+# As expected, my analysis of incidents by time of day shows that the least incidents occured in the morning around 8:00 - 12:00, and there were more incidents at night.
+
+# Biases:
+# Only reported incidents are included in the data analysis. Incidents not documented by the NYPD are excluded.
+# There are data entry errors (ex. age groups like 1020 or 1022) which means some data may be inaccurate or misclassified.
+# There are a lot of unknown and null fields (age, gender, borough) which impacts the accuracy of the analysis.
+
+
+
+
+
+```
